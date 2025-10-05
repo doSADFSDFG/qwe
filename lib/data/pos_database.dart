@@ -7,6 +7,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../models/menu_category.dart';
 import '../models/menu_item.dart';
+import '../models/order_activity_log.dart';
 import '../models/order_item.dart';
 import '../models/pos_order.dart';
 import '../models/pos_table.dart';
@@ -29,7 +30,7 @@ class PosDatabase {
     final path = p.join(dir.path, 'pos.sqlite3');
     _db = await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -98,6 +99,17 @@ class PosDatabase {
         FOREIGN KEY(order_id) REFERENCES orders(id)
       );
     ''');
+
+    await db.execute('''
+      CREATE TABLE order_activity_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER NOT NULL,
+        menu_name TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY(order_id) REFERENCES orders(id)
+      );
+    ''');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -108,6 +120,18 @@ class PosDatabase {
         'UPDATE order_items SET updated_at = ? WHERE updated_at IS NULL',
         [now],
       );
+    }
+    if (oldVersion < 3) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS order_activity_logs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          order_id INTEGER NOT NULL,
+          menu_name TEXT NOT NULL,
+          quantity INTEGER NOT NULL,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY(order_id) REFERENCES orders(id)
+        );
+      ''');
     }
   }
 
@@ -377,6 +401,8 @@ class PosDatabase {
       'total': total,
       'payment_method': paymentMethod,
     });
+
+    await db.delete('order_activity_logs', where: 'order_id = ?', whereArgs: [orderId]);
   }
 
   Future<void> updateSaleRecord({
@@ -423,6 +449,26 @@ class PosDatabase {
     );
   }
 
+  Future<void> deleteSaleRecord(int saleId) async {
+    final db = await open();
+    await db.transaction((txn) async {
+      final saleRows = await txn.query(
+        'sales',
+        where: 'id = ?',
+        whereArgs: [saleId],
+        limit: 1,
+      );
+      if (saleRows.isEmpty) {
+        return;
+      }
+      final orderId = saleRows.first['order_id'] as int;
+      await txn.delete('sales', where: 'id = ?', whereArgs: [saleId]);
+      await txn.delete('order_activity_logs', where: 'order_id = ?', whereArgs: [orderId]);
+      await txn.delete('order_items', where: 'order_id = ?', whereArgs: [orderId]);
+      await txn.delete('orders', where: 'id = ?', whereArgs: [orderId]);
+    });
+  }
+
   // ---------- Sales ----------
   Future<List<SalesRecord>> getSalesForDate(DateTime date) async {
     final db = await open();
@@ -450,9 +496,11 @@ class PosDatabase {
     }
 
     final rows = await db.rawQuery('''
-      SELECT menus.name, order_items.quantity, order_items.unit_price
+      SELECT menus.name, order_items.quantity, order_items.unit_price,
+             categories.name AS category_name
       FROM order_items
       JOIN menus ON menus.id = order_items.menu_id
+      JOIN categories ON categories.id = menus.category_id
       WHERE order_items.order_id = ?
     ''', [order.id]);
 
@@ -461,6 +509,7 @@ class PosDatabase {
               name: row['name'] as String,
               quantity: row['quantity'] as int,
               total: (row['quantity'] as int) * (row['unit_price'] as int),
+              categoryName: row['category_name'] as String,
             ))
         .toList();
     final total = items.fold<int>(0, (sum, item) => sum + item.total);
@@ -469,6 +518,32 @@ class PosDatabase {
       total: total,
       items: items,
     );
+  }
+
+  Future<void> insertOrderActivityLog({
+    required int orderId,
+    required String menuName,
+    required int quantity,
+    required DateTime createdAt,
+  }) async {
+    final db = await open();
+    await db.insert('order_activity_logs', {
+      'order_id': orderId,
+      'menu_name': menuName,
+      'quantity': quantity,
+      'created_at': koreanIsoString(createdAt),
+    });
+  }
+
+  Future<List<OrderActivityLog>> getOrderActivityLogs(int orderId) async {
+    final db = await open();
+    final rows = await db.query(
+      'order_activity_logs',
+      where: 'order_id = ?',
+      whereArgs: [orderId],
+      orderBy: 'created_at ASC',
+    );
+    return rows.map(OrderActivityLog.fromMap).toList();
   }
 }
 
@@ -496,9 +571,11 @@ class TableOrderItem {
     required this.name,
     required this.quantity,
     required this.total,
+    required this.categoryName,
   });
 
   final String name;
   final int quantity;
   final int total;
+  final String categoryName;
 }

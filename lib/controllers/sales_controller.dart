@@ -58,4 +58,9 @@ class SalesRecordEditor {
     );
     _ref.invalidate(salesRecordsProvider);
   }
+
+  Future<void> deleteRecord(SalesRecord record) async {
+    await _db.deleteSaleRecord(record.id);
+    _ref.invalidate(salesRecordsProvider);
+  }
 }

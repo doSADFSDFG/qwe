@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -23,8 +26,10 @@ class TableCard extends ConsumerStatefulWidget {
 
 class _TableCardState extends ConsumerState<TableCard> {
   late Offset _position;
-  final LayerLink _layerLink = LayerLink();
   OverlayEntry? _overlayEntry;
+  Timer? _hoverTimer;
+
+  static const _drinkCategoryName = '주류';
 
   @override
   void initState() {
@@ -48,6 +53,7 @@ class _TableCardState extends ConsumerState<TableCard> {
   @override
   void dispose() {
     _hideOverlay();
+    _hoverTimer?.cancel();
     super.dispose();
   }
 
@@ -55,33 +61,51 @@ class _TableCardState extends ConsumerState<TableCard> {
   Widget build(BuildContext context) {
     final formattedTotal = NumberFormat('#,###').format(widget.model.snapshot.total);
     final items = widget.model.snapshot.items;
-    final summary = items.isEmpty
-        ? '주문 없음'
-        : items
-            .take(3)
-            .map((item) => '${item.name} x${item.quantity}')
-            .join('\n');
+    final drinkItems =
+        items.where((item) => item.categoryName == _drinkCategoryName).toList();
+    final summary = () {
+      if (items.isEmpty) {
+        return '주문 없음';
+      }
+      if (drinkItems.isEmpty) {
+        return '주류 주문 없음';
+      }
+      return drinkItems
+          .take(3)
+          .map((item) => '${item.name} x${item.quantity}')
+          .join('\n');
+    }();
 
     final card = MouseRegion(
-      onEnter: (_) => _showOverlay(),
-      onExit: (_) => _hideOverlay(),
+      onEnter: _handleHoverStart,
+      onExit: _handleHoverEnd,
       child: GestureDetector(
         onTap: widget.editable ? null : widget.onOrderRequested,
         onLongPress: widget.editable ? null : _toggleOverlay,
         onPanUpdate: widget.editable ? _handlePanUpdate : null,
         onPanEnd: widget.editable ? _handlePanEnd : null,
-        child: CompositedTransformTarget(
-          link: _layerLink,
-          child: SizedBox(
-            width: 200,
-            height: 180,
-            child: Card(
-              elevation: 6,
-              shadowColor: Colors.black.withOpacity(0.08),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-              color: Theme.of(context).colorScheme.surface,
+        child: SizedBox(
+          width: 200,
+          height: 180,
+          child: Card(
+            elevation: 8,
+            shadowColor: Colors.black.withOpacity(0.08),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+            color: Colors.transparent,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Theme.of(context).colorScheme.primaryContainer.withOpacity(0.9),
+                    Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.9),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(28),
+              ),
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(22),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -102,23 +126,27 @@ class _TableCardState extends ConsumerState<TableCard> {
                         const Spacer(),
                         if (widget.model.snapshot.hasOpenOrder)
                           Icon(
-                            Icons.receipt_long,
+                            Icons.local_bar,
                             color: Theme.of(context).colorScheme.primary,
                             size: 28,
                           ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 18),
                     Expanded(
-                      child: Text(
-                        summary,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              height: 1.4,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: Text(
+                          summary,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                height: 1.4,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.black,
+                                fontSize: 17,
+                              ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -127,7 +155,7 @@ class _TableCardState extends ConsumerState<TableCard> {
                           ? '합계: \u20a9$formattedTotal'
                           : '대기 중',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w900,
                             color: widget.model.snapshot.hasOpenOrder
                                 ? Theme.of(context).colorScheme.primary
                                 : Colors.black45,
@@ -167,10 +195,28 @@ class _TableCardState extends ConsumerState<TableCard> {
 
   void _toggleOverlay() {
     if (_overlayEntry == null) {
+      _hoverTimer?.cancel();
       _showOverlay();
     } else {
       _hideOverlay();
     }
+  }
+
+  void _handleHoverStart(PointerEnterEvent event) {
+    if (widget.editable || !widget.model.snapshot.hasOpenOrder) {
+      return;
+    }
+    _hoverTimer?.cancel();
+    _hoverTimer = Timer(const Duration(seconds: 1), () {
+      if (!mounted) return;
+      _showOverlay();
+    });
+  }
+
+  void _handleHoverEnd(PointerExitEvent event) {
+    _hoverTimer?.cancel();
+    _hoverTimer = null;
+    _hideOverlay();
   }
 
   void _showOverlay() {
@@ -189,55 +235,116 @@ class _TableCardState extends ConsumerState<TableCard> {
 
     _overlayEntry = OverlayEntry(builder: (context) {
       final items = widget.model.snapshot.items;
-      return CompositedTransformFollower(
-        link: _layerLink,
-        showWhenUnlinked: false,
-        offset: const Offset(0, 190),
-        child: Material(
-          elevation: 8,
-          borderRadius: BorderRadius.circular(24),
-          color: Theme.of(context).colorScheme.surface,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 240, maxWidth: 320),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '상세 주문',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
+      final numberFormat = NumberFormat('#,###');
+      return IgnorePointer(
+        child: Container(
+          alignment: Alignment.center,
+          color: Colors.black.withOpacity(0.08),
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 460, maxHeight: 520),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.96),
+                borderRadius: BorderRadius.circular(36),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.12),
+                    blurRadius: 28,
+                    offset: const Offset(0, 18),
                   ),
-                  const SizedBox(height: 12),
-                  for (final item in items)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              item.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16,
+                ],
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                  width: 1.2,
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.max,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '전체 주문 내역',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            color: Colors.black,
+                          ),
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: items.isEmpty
+                          ? const Center(
+                              child: Text(
+                                '주문 항목이 없습니다.',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            )
+                          : DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primaryContainer
+                                    .withOpacity(0.25),
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              child: ListView.separated(
+                                shrinkWrap: true,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                itemCount: items.length,
+                                separatorBuilder: (_, __) => Divider(
+                                  height: 1,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withOpacity(0.2),
+                                ),
+                                itemBuilder: (context, index) {
+                                  final item = items[index];
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 22,
+                                      vertical: 14,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            item.name,
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ),
+                                        Text(
+                                          'x${item.quantity}',
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
                               ),
                             ),
-                          ),
-                          Text(
-                            'x${item.quantity}',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
-                ],
+                    const SizedBox(height: 18),
+                    Text(
+                      '총 결제금액: \u20a9${numberFormat.format(widget.model.snapshot.total)}',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

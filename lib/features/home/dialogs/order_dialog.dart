@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../controllers/menu_controller.dart';
 import '../../../controllers/order_controller.dart';
 import '../../../models/menu_item.dart';
+import '../../../models/order_activity_log.dart';
 import '../../../models/order_item.dart';
 import '../../../utils/time_ago.dart';
 
@@ -25,7 +26,7 @@ class _OrderDialogState extends ConsumerState<OrderDialog> {
 
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
       child: SizedBox(
         width: 920,
         height: 620,
@@ -43,109 +44,163 @@ class _OrderDialogState extends ConsumerState<OrderDialog> {
 
                 return DefaultTabController(
                   length: categories.length,
-                  child: Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              '테이블 ${orderState.tableId}',
-                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                            ),
-                            const Spacer(),
-                            IconButton(
-                              onPressed: () => Navigator.of(context).pop(),
-                              icon: const Icon(Icons.close),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Expanded(
-                          child: Row(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Theme.of(context).colorScheme.surface,
+                          Theme.of(context).colorScheme.surface.withOpacity(0.92),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(36),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
                             children: [
-                              Expanded(
-                                flex: 2,
-                                child: _OrderItemsPanel(
-                                  state: orderState,
-                                  onIncrement: (item) => ref
-                                      .read(orderEditorProvider(widget.tableId).notifier)
-                                      .incrementItem(item),
-                                  onDecrement: (item) => ref
-                                      .read(orderEditorProvider(widget.tableId).notifier)
-                                      .decrementItem(item),
-                                ),
+                              Text(
+                                '테이블 ${orderState.tableId}',
+                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.black,
+                                    ),
                               ),
-                              const SizedBox(width: 24),
-                              Expanded(
-                                flex: 3,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    TabBar(
-                                      isScrollable: true,
-                                      labelStyle: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      tabs: [
-                                        for (final category in categories)
-                                          Tab(text: category.name),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Expanded(
-                                      child: TabBarView(
-                                        children: [
-                                          for (final category in categories)
-                                            _MenuGrid(
-                                              categoryId: category.id,
-                                              onAdd: (menu) => ref
-                                                  .read(orderEditorProvider(widget.tableId).notifier)
-                                                  .addMenuItem(menu),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                              const Spacer(),
+                              IconButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                icon: const Icon(Icons.close),
                               ),
                             ],
                           ),
-                        ),
-                        const SizedBox(height: 20),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            FilledButton.tonal(
-                              onPressed: () => Navigator.of(context).pop(),
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 20),
-                                child: Text(
-                                  '저장',
-                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          const SizedBox(height: 12),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  flex: 2,
+                                  child: _OrderItemsPanel(
+                                    state: orderState,
+                                    onIncrement: (item) => ref
+                                        .read(orderEditorProvider(widget.tableId).notifier)
+                                        .incrementItem(item),
+                                    onDecrement: (item) => ref
+                                        .read(orderEditorProvider(widget.tableId).notifier)
+                                        .decrementItem(item),
+                                  ),
                                 ),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            FilledButton(
-                              onPressed: orderState.items.isEmpty
-                                  ? null
-                                  : () => _showPaymentSheet(context, orderState.total),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 20),
-                                child: Text(
-                                  '결제하기 (\u20a9${NumberFormat('#,###').format(orderState.total)})',
-                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                const SizedBox(width: 24),
+                                Expanded(
+                                  flex: 3,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.75),
+                                      borderRadius: BorderRadius.circular(28),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.05),
+                                          blurRadius: 12,
+                                          offset: const Offset(0, 6),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '메뉴 추가',
+                                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                                  fontWeight: FontWeight.w900,
+                                                ),
+                                          ),
+                                          const SizedBox(height: 16),
+                                          TabBar(
+                                            isScrollable: true,
+                                            labelStyle: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                            tabs: [
+                                              for (final category in categories)
+                                                Tab(text: category.name),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Expanded(
+                                            child: TabBarView(
+                                              children: [
+                                                for (final category in categories)
+                                                  _MenuGrid(
+                                                    categoryId: category.id,
+                                                    onAdd: (menu) => ref
+                                                        .read(orderEditorProvider(widget.tableId).notifier)
+                                                        .addMenuItem(menu),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ],
+                          ),
+                          const SizedBox(height: 20),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (orderState.activityLogs.isNotEmpty) ...[
+                                Expanded(
+                                  child: _ActivityLogPanel(logs: orderState.activityLogs),
+                                ),
+                                const SizedBox(width: 24),
+                              ] else ...[
+                                const Spacer(),
+                              ],
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  FilledButton.tonal(
+                                    onPressed: () => Navigator.of(context).pop(),
+                                    style: FilledButton.styleFrom(
+                                      minimumSize: const Size(150, 64),
+                                      textStyle: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    child: const Text('저장'),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  FilledButton(
+                                    onPressed: orderState.items.isEmpty
+                                        ? null
+                                        : () => _showPaymentSheet(context, orderState.total),
+                                    style: FilledButton.styleFrom(
+                                      minimumSize: const Size(220, 64),
+                                      textStyle: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      '결제하기 (₩${NumberFormat('#,###').format(orderState.total)})',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -258,26 +313,35 @@ class _MenuGrid extends ConsumerWidget {
         return GridView.builder(
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
-            mainAxisSpacing: 16,
-            crossAxisSpacing: 16,
-            childAspectRatio: 2.4,
+            mainAxisSpacing: 18,
+            crossAxisSpacing: 18,
+            childAspectRatio: 2.2,
           ),
           itemCount: items.length,
           itemBuilder: (context, index) {
             final menu = items[index];
-            return ElevatedButton(
+            return FilledButton(
               onPressed: () => onAdd(menu),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(menu.name),
-                  const SizedBox(height: 6),
-                  Text('₩${NumberFormat('#,###').format(menu.price)}',
-                      style: const TextStyle(fontSize: 14, color: Colors.white70)),
+                  Text(menu.name, textAlign: TextAlign.center),
+                  const SizedBox(height: 8),
+                  Text(
+                    '₩${NumberFormat('#,###').format(menu.price)}',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
                 ],
               ),
             );
@@ -301,59 +365,76 @@ class _OrderItemsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 3,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.85),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               '주문 내역',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 20,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
                   ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Expanded(
               child: state.items.isEmpty
-                  ? const Center(child: Text('주문이 비어 있습니다.'))
+                  ? const Center(
+                      child: Text(
+                        '주문이 비어 있습니다.',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                      ),
+                    )
                   : ListView.separated(
+                      padding: EdgeInsets.zero,
                       itemCount: state.items.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
                         final item = state.items[index];
-                        return DecoratedBox(
+                        return Container(
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(20),
+                            color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.65),
+                            borderRadius: BorderRadius.circular(24),
                           ),
                           child: Padding(
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(18),
                             child: Row(
                               children: [
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(item.menuName,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 18,
-                                          )),
+                                      Text(
+                                        item.menuName,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 20,
+                                        ),
+                                      ),
                                       const SizedBox(height: 6),
                                       Text(
                                         '합계: \u20a9${NumberFormat('#,###').format(item.total)}',
-                                        style: const TextStyle(fontSize: 16),
+                                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
                                         formatRelativeTime(item.updatedAt.toLocal()),
                                         style: TextStyle(
                                           fontSize: 14,
-                                          color: Theme.of(context).colorScheme.primary,
                                           fontWeight: FontWeight.bold,
+                                          color: Theme.of(context).colorScheme.primary,
                                         ),
                                       ),
                                     ],
@@ -370,8 +451,8 @@ class _OrderItemsPanel extends StatelessWidget {
                                       child: Text(
                                         item.quantity.toString(),
                                         style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w800,
                                         ),
                                       ),
                                     ),
@@ -387,6 +468,75 @@ class _OrderItemsPanel extends StatelessWidget {
                         );
                       },
                     ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActivityLogPanel extends StatelessWidget {
+  const _ActivityLogPanel({required this.logs});
+
+  final List<OrderActivityLog> logs;
+
+  @override
+  Widget build(BuildContext context) {
+    final reversedLogs = logs.reversed.toList();
+    return Container(
+      height: 140,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.4),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '활동 기록',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: ListView.separated(
+                padding: EdgeInsets.zero,
+                itemCount: reversedLogs.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final log = reversedLogs[index];
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${log.menuName} x${log.quantity}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        formatRelativeTime(log.createdAt),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
           ],
         ),
