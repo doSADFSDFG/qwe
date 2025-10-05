@@ -11,6 +11,7 @@ import '../models/order_item.dart';
 import '../models/pos_order.dart';
 import '../models/pos_table.dart';
 import '../models/sales_record.dart';
+import '../utils/korean_time.dart';
 
 final posDatabaseProvider = Provider<PosDatabase>((ref) {
   return PosDatabase();
@@ -93,20 +94,12 @@ class PosDatabase {
     ''');
   }
 
+  // ---------- Categories ----------
   Future<void> insertCategories(List<MenuCategory> categories) async {
     final db = await open();
     final batch = db.batch();
     for (final category in categories) {
       batch.insert('categories', category.toMap());
-    }
-    await batch.commit(noResult: true);
-  }
-
-  Future<void> insertMenuItems(List<MenuItem> items) async {
-    final db = await open();
-    final batch = db.batch();
-    for (final item in items) {
-      batch.insert('menus', item.toMap());
     }
     await batch.commit(noResult: true);
   }
@@ -128,16 +121,24 @@ class PosDatabase {
 
   Future<void> deleteCategory(int categoryId) async {
     final db = await open();
-    await db.delete(
-      'menus',
-      where: 'category_id = ?',
-      whereArgs: [categoryId],
-    );
-    await db.delete(
-      'categories',
-      where: 'id = ?',
-      whereArgs: [categoryId],
-    );
+    await db.delete('menus', where: 'category_id = ?', whereArgs: [categoryId]);
+    await db.delete('categories', where: 'id = ?', whereArgs: [categoryId]);
+  }
+
+  Future<List<MenuCategory>> getCategories() async {
+    final db = await open();
+    final rows = await db.query('categories', orderBy: 'id');
+    return rows.map(MenuCategory.fromMap).toList();
+  }
+
+  // ---------- Menus ----------
+  Future<void> insertMenuItems(List<MenuItem> items) async {
+    final db = await open();
+    final batch = db.batch();
+    for (final item in items) {
+      batch.insert('menus', item.toMap());
+    }
+    await batch.commit(noResult: true);
   }
 
   Future<int> addMenu({
@@ -157,11 +158,7 @@ class PosDatabase {
     final db = await open();
     await db.update(
       'menus',
-      {
-        'name': item.name,
-        'price': item.price,
-        'category_id': item.categoryId,
-      },
+      {'name': item.name, 'price': item.price, 'category_id': item.categoryId},
       where: 'id = ?',
       whereArgs: [item.id],
     );
@@ -169,18 +166,22 @@ class PosDatabase {
 
   Future<void> deleteMenu(int menuId) async {
     final db = await open();
-    await db.delete(
-      'order_items',
-      where: 'menu_id = ?',
-      whereArgs: [menuId],
-    );
-    await db.delete(
-      'menus',
-      where: 'id = ?',
-      whereArgs: [menuId],
-    );
+    await db.delete('order_items', where: 'menu_id = ?', whereArgs: [menuId]);
+    await db.delete('menus', where: 'id = ?', whereArgs: [menuId]);
   }
 
+  Future<List<MenuItem>> getMenuItemsByCategory(int categoryId) async {
+    final db = await open();
+    final rows = await db.query(
+      'menus',
+      where: 'category_id = ?',
+      whereArgs: [categoryId],
+      orderBy: 'name',
+    );
+    return rows.map(MenuItem.fromMap).toList();
+  }
+
+  // ---------- Tables ----------
   Future<void> insertTables(List<PosTable> tables) async {
     final db = await open();
     final batch = db.batch();
@@ -196,22 +197,14 @@ class PosDatabase {
     required double y,
   }) async {
     final db = await open();
-    return db.insert('tables', {
-      'name': name,
-      'x': x,
-      'y': y,
-    });
+    return db.insert('tables', {'name': name, 'x': x, 'y': y});
   }
 
   Future<void> updateTable(PosTable table) async {
     final db = await open();
     await db.update(
       'tables',
-      {
-        'name': table.name,
-        'x': table.x,
-        'y': table.y,
-      },
+      {'name': table.name, 'x': table.x, 'y': table.y},
       where: 'id = ?',
       whereArgs: [table.id],
     );
@@ -227,44 +220,11 @@ class PosDatabase {
     );
     for (final row in orderRows) {
       final orderId = row['id'] as int;
-      await db.delete(
-        'order_items',
-        where: 'order_id = ?',
-        whereArgs: [orderId],
-      );
-      await db.delete(
-        'sales',
-        where: 'order_id = ?',
-        whereArgs: [orderId],
-      );
+      await db.delete('order_items', where: 'order_id = ?', whereArgs: [orderId]);
+      await db.delete('sales', where: 'order_id = ?', whereArgs: [orderId]);
     }
-    await db.delete(
-      'orders',
-      where: 'table_id = ?',
-      whereArgs: [tableId],
-    );
-    await db.delete(
-      'tables',
-      where: 'id = ?',
-      whereArgs: [tableId],
-    );
-  }
-
-  Future<List<MenuCategory>> getCategories() async {
-    final db = await open();
-    final rows = await db.query('categories', orderBy: 'id');
-    return rows.map(MenuCategory.fromMap).toList();
-  }
-
-  Future<List<MenuItem>> getMenuItemsByCategory(int categoryId) async {
-    final db = await open();
-    final rows = await db.query(
-      'menus',
-      where: 'category_id = ?',
-      whereArgs: [categoryId],
-      orderBy: 'name',
-    );
-    return rows.map(MenuItem.fromMap).toList();
+    await db.delete('orders', where: 'table_id = ?', whereArgs: [tableId]);
+    await db.delete('tables', where: 'id = ?', whereArgs: [tableId]);
   }
 
   Future<List<PosTable>> getTables() async {
@@ -279,14 +239,10 @@ class PosDatabase {
     required double y,
   }) async {
     final db = await open();
-    await db.update(
-      'tables',
-      {'x': x, 'y': y},
-      where: 'id = ?',
-      whereArgs: [tableId],
-    );
+    await db.update('tables', {'x': x, 'y': y}, where: 'id = ?', whereArgs: [tableId]);
   }
 
+  // ---------- Orders ----------
   Future<PosOrder?> getOpenOrderForTable(int tableId) async {
     final db = await open();
     final rows = await db.query(
@@ -296,17 +252,16 @@ class PosDatabase {
       orderBy: 'opened_at DESC',
       limit: 1,
     );
-    if (rows.isEmpty) {
-      return null;
-    }
+    if (rows.isEmpty) return null;
     return PosOrder.fromMap(rows.first);
   }
 
   Future<int> createOrder(int tableId) async {
     final db = await open();
+    final openedAt = koreanIsoString(nowInKoreanTime());
     return db.insert('orders', {
       'table_id': tableId,
-      'opened_at': DateTime.now().toIso8601String(),
+      'opened_at': openedAt,
     });
   }
 
@@ -362,18 +317,10 @@ class PosDatabase {
   }) async {
     final db = await open();
     if (quantity <= 0) {
-      await db.delete(
-        'order_items',
-        where: 'id = ?',
-        whereArgs: [orderItemId],
-      );
+      await db.delete('order_items', where: 'id = ?', whereArgs: [orderItemId]);
     } else {
-      await db.update(
-        'order_items',
-        {'quantity': quantity},
-        where: 'id = ?',
-        whereArgs: [orderItemId],
-      );
+      await db.update('order_items', {'quantity': quantity},
+          where: 'id = ?', whereArgs: [orderItemId]);
     }
   }
 
@@ -383,10 +330,12 @@ class PosDatabase {
     required String paymentMethod,
   }) async {
     final db = await open();
+    final closedAt = koreanIsoString(nowInKoreanTime());
+
     await db.update(
       'orders',
       {
-        'closed_at': DateTime.now().toIso8601String(),
+        'closed_at': closedAt,
         'payment_method': paymentMethod,
         'total': total,
       },
@@ -396,25 +345,27 @@ class PosDatabase {
 
     await db.insert('sales', {
       'order_id': orderId,
-      'closed_date': DateTime.now().toIso8601String(),
+      'closed_date': closedAt,
       'total': total,
       'payment_method': paymentMethod,
     });
   }
 
+  // ---------- Sales ----------
   Future<List<SalesRecord>> getSalesForDate(DateTime date) async {
     final db = await open();
-    final start = DateTime(date.year, date.month, date.day);
-    final end = start.add(const Duration(days: 1));
+    final start = koreanIsoString(startOfKoreanDay(date));
+    final end = koreanIsoString(startOfKoreanDay(date).add(const Duration(days: 1)));
+
     final rows = await db.rawQuery('''
       SELECT sales.id, sales.order_id, sales.total, sales.payment_method,
              sales.closed_date, tables.name AS table_name
       FROM sales
       JOIN orders ON orders.id = sales.order_id
       JOIN tables ON tables.id = orders.table_id
-      WHERE datetime(sales.closed_date) >= ? AND datetime(sales.closed_date) < ?
+      WHERE sales.closed_date >= ? AND sales.closed_date < ?
       ORDER BY sales.closed_date DESC
-    ''', [start.toIso8601String(), end.toIso8601String()]);
+    ''', [start, end]);
 
     return rows.map(SalesRecord.fromJoinedMap).toList();
   }

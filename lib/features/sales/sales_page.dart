@@ -95,7 +95,7 @@ class SalesPage extends ConsumerWidget {
                                 leading: const Icon(Icons.receipt_long),
                                 title: Text('${record.tableName} - ₩${NumberFormat('#,###').format(record.total)}'),
                                 subtitle: Text(
-                                  '${DateFormat('HH:mm').format(record.closedDate)} · ${record.paymentMethod}',
+                                  '${DateFormat('HH:mm').format(record.closedDate.toLocal())} · ${record.paymentMethod}',
                                 ),
                               );
                             },

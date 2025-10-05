@@ -4,6 +4,7 @@ import '../data/pos_database.dart';
 import '../models/menu_item.dart';
 import '../models/order_item.dart';
 import '../models/pos_order.dart';
+import '../utils/korean_time.dart';
 import 'tables_controller.dart';
 
 final orderEditorProvider = AutoDisposeAsyncNotifierProviderFamily<OrderEditor, OrderState, int>(
@@ -99,7 +100,7 @@ class OrderEditor extends AutoDisposeFamilyAsyncNotifier<OrderState, int> {
     final order = PosOrder(
       id: orderId,
       tableId: tableId,
-      openedAt: DateTime.now(),
+      openedAt: nowInKoreanTime(),
     );
     state = AsyncData(OrderState(tableId: tableId, order: order, items: const []));
     return order;

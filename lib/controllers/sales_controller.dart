@@ -3,10 +3,9 @@ import 'package:intl/intl.dart';
 
 import '../data/pos_database.dart';
 import '../models/sales_record.dart';
-
+import '../utils/korean_time.dart';
 final salesDateProvider = StateProvider<DateTime>((ref) {
-  final now = DateTime.now();
-  return DateTime(now.year, now.month, now.day);
+  return startOfKoreanDay();
 });
 
 final salesRecordsProvider = FutureProvider<List<SalesRecord>>((ref) async {
