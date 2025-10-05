@@ -4,6 +4,10 @@ import 'package:intl/intl.dart';
 import '../data/pos_database.dart';
 import '../models/sales_record.dart';
 import '../utils/korean_time.dart';
+
+final salesRecordEditorProvider = Provider<SalesRecordEditor>((ref) {
+  return SalesRecordEditor(ref);
+});
 final salesDateProvider = StateProvider<DateTime>((ref) {
   return startOfKoreanDay();
 });
@@ -31,4 +35,27 @@ class SalesSummary {
   final int count;
 
   String get formattedTotal => NumberFormat('#,###').format(total);
+}
+
+class SalesRecordEditor {
+  SalesRecordEditor(this._ref);
+
+  final Ref _ref;
+
+  PosDatabase get _db => _ref.read(posDatabaseProvider);
+
+  Future<void> updateRecord({
+    required SalesRecord record,
+    required int total,
+    required String paymentMethod,
+    required DateTime closedDate,
+  }) async {
+    await _db.updateSaleRecord(
+      saleId: record.id,
+      total: total,
+      paymentMethod: paymentMethod,
+      closedDate: closedDate,
+    );
+    _ref.invalidate(salesRecordsProvider);
+  }
 }

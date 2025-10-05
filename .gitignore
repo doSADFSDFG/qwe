@@ -16,7 +16,6 @@ ios/
 macos/
 web/
 linux/
-windows/
 
 # Generated assets
 coverage/

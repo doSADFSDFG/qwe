@@ -27,7 +27,12 @@ class PosDatabase {
 
     final dir = await getApplicationSupportDirectory();
     final path = p.join(dir.path, 'pos.sqlite3');
-    _db = await openDatabase(path, version: 1, onCreate: _onCreate);
+    _db = await openDatabase(
+      path,
+      version: 2,
+      onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
+    );
     return _db!;
   }
 
@@ -77,6 +82,7 @@ class PosDatabase {
         menu_id INTEGER NOT NULL,
         quantity INTEGER NOT NULL,
         unit_price INTEGER NOT NULL,
+        updated_at TEXT NOT NULL,
         FOREIGN KEY(order_id) REFERENCES orders(id),
         FOREIGN KEY(menu_id) REFERENCES menus(id)
       );
@@ -92,6 +98,17 @@ class PosDatabase {
         FOREIGN KEY(order_id) REFERENCES orders(id)
       );
     ''');
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('ALTER TABLE order_items ADD COLUMN updated_at TEXT');
+      final now = koreanIsoString(nowInKoreanTime());
+      await db.rawUpdate(
+        'UPDATE order_items SET updated_at = ? WHERE updated_at IS NULL',
+        [now],
+      );
+    }
   }
 
   // ---------- Categories ----------
@@ -269,7 +286,7 @@ class PosDatabase {
     final db = await open();
     final rows = await db.rawQuery('''
       SELECT order_items.id, order_items.order_id, order_items.menu_id,
-             order_items.quantity, order_items.unit_price,
+             order_items.quantity, order_items.unit_price, order_items.updated_at,
              menus.name
       FROM order_items
       JOIN menus ON menus.id = order_items.menu_id
@@ -299,12 +316,16 @@ class PosDatabase {
         'menu_id': menu.id,
         'quantity': quantity,
         'unit_price': menu.price,
+        'updated_at': koreanIsoString(nowInKoreanTime()),
       });
     } else {
       final currentQty = existing.first['quantity'] as int;
       await db.update(
         'order_items',
-        {'quantity': currentQty + quantity},
+        {
+          'quantity': currentQty + quantity,
+          'updated_at': koreanIsoString(nowInKoreanTime()),
+        },
         where: 'id = ?',
         whereArgs: [existing.first['id']],
       );
@@ -319,8 +340,15 @@ class PosDatabase {
     if (quantity <= 0) {
       await db.delete('order_items', where: 'id = ?', whereArgs: [orderItemId]);
     } else {
-      await db.update('order_items', {'quantity': quantity},
-          where: 'id = ?', whereArgs: [orderItemId]);
+      await db.update(
+        'order_items',
+        {
+          'quantity': quantity,
+          'updated_at': koreanIsoString(nowInKoreanTime()),
+        },
+        where: 'id = ?',
+        whereArgs: [orderItemId],
+      );
     }
   }
 
@@ -349,6 +377,50 @@ class PosDatabase {
       'total': total,
       'payment_method': paymentMethod,
     });
+  }
+
+  Future<void> updateSaleRecord({
+    required int saleId,
+    required int total,
+    required String paymentMethod,
+    required DateTime closedDate,
+  }) async {
+    final db = await open();
+    final rows = await db.query(
+      'sales',
+      columns: ['order_id'],
+      where: 'id = ?',
+      whereArgs: [saleId],
+      limit: 1,
+    );
+    if (rows.isEmpty) {
+      return;
+    }
+
+    final orderId = rows.first['order_id'] as int;
+    final closedIso = koreanIsoString(closedDate);
+
+    await db.update(
+      'sales',
+      {
+        'total': total,
+        'payment_method': paymentMethod,
+        'closed_date': closedIso,
+      },
+      where: 'id = ?',
+      whereArgs: [saleId],
+    );
+
+    await db.update(
+      'orders',
+      {
+        'total': total,
+        'payment_method': paymentMethod,
+        'closed_at': closedIso,
+      },
+      where: 'id = ?',
+      whereArgs: [orderId],
+    );
   }
 
   // ---------- Sales ----------

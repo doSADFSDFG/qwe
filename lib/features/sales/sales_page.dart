@@ -5,6 +5,7 @@ import 'package:table_calendar/table_calendar.dart';
 
 import '../../controllers/sales_controller.dart';
 import '../../widgets/error_state.dart';
+import '../../models/sales_record.dart';
 
 class SalesPage extends ConsumerWidget {
   const SalesPage({super.key});
@@ -91,13 +92,7 @@ class SalesPage extends ConsumerWidget {
                             separatorBuilder: (_, __) => const Divider(height: 1),
                             itemBuilder: (context, index) {
                               final record = records[index];
-                              return ListTile(
-                                leading: const Icon(Icons.receipt_long),
-                                title: Text('${record.tableName} - ₩${NumberFormat('#,###').format(record.total)}'),
-                                subtitle: Text(
-                                  '${DateFormat('HH:mm').format(record.closedDate.toLocal())} · ${record.paymentMethod}',
-                                ),
-                              );
+                              return _SalesRecordTile(record: record);
                             },
                           );
                         },
@@ -111,5 +106,242 @@ class SalesPage extends ConsumerWidget {
         ],
       ),
     );
+  }
+}
+
+class _SalesRecordTile extends ConsumerWidget {
+  const _SalesRecordTile({required this.record});
+
+  final SalesRecord record;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final formattedTotal = NumberFormat('#,###').format(record.total);
+    final time = DateFormat('HH:mm').format(record.closedDate.toLocal());
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      leading: CircleAvatar(
+        backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+        child: Icon(Icons.receipt_long, color: Theme.of(context).colorScheme.primary),
+      ),
+      title: Text(
+        '${record.tableName} · ₩$formattedTotal',
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+      ),
+      subtitle: Text('$time · ${record.paymentMethod}'),
+      trailing: FilledButton.tonalIcon(
+        onPressed: () => _openEditDialog(context, ref),
+        icon: const Icon(Icons.edit),
+        label: const Text('수정'),
+      ),
+      onTap: () => _openEditDialog(context, ref),
+    );
+  }
+
+  Future<void> _openEditDialog(BuildContext context, WidgetRef ref) async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => SalesRecordEditDialog(record: record),
+    );
+  }
+}
+
+class SalesRecordEditDialog extends ConsumerStatefulWidget {
+  const SalesRecordEditDialog({super.key, required this.record});
+
+  final SalesRecord record;
+
+  @override
+  ConsumerState<SalesRecordEditDialog> createState() => _SalesRecordEditDialogState();
+}
+
+class _SalesRecordEditDialogState extends ConsumerState<SalesRecordEditDialog> {
+  late final TextEditingController _totalController;
+  late DateTime _closedDate;
+  late String _paymentMethod;
+  String? _error;
+
+  static const _paymentOptions = ['현금', '카드', '기타'];
+
+  @override
+  void initState() {
+    super.initState();
+    _totalController = TextEditingController(text: widget.record.total.toString());
+    _closedDate = widget.record.closedDate.toLocal();
+    _paymentMethod = widget.record.paymentMethod;
+  }
+
+  @override
+  void dispose() {
+    _totalController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      child: SizedBox(
+        width: 420,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    '${widget.record.tableName} 매출 수정',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _totalController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: '총액 (원)',
+                  prefixText: '₩',
+                ),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _paymentOptions.contains(_paymentMethod) ? _paymentMethod : _paymentOptions.first,
+                items: [
+                  for (final option in _paymentOptions)
+                    DropdownMenuItem(
+                      value: option,
+                      child: Text(option),
+                    ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _paymentMethod = value;
+                    });
+                  }
+                },
+                decoration: const InputDecoration(labelText: '결제 수단'),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      DateFormat('yyyy.MM.dd HH:mm').format(_closedDate),
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _pickDate,
+                    child: const Text('날짜 선택'),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: _pickTime,
+                    child: const Text('시간 선택'),
+                  ),
+                ],
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _error!,
+                  style: const TextStyle(color: Colors.redAccent),
+                ),
+              ],
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  FilledButton.tonal(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('취소'),
+                  ),
+                  const SizedBox(width: 12),
+                  FilledButton(
+                    onPressed: _handleSave,
+                    child: const Text('저장'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _closedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+      locale: const Locale('ko', 'KR'),
+    );
+    if (picked != null) {
+      setState(() {
+        _closedDate = DateTime(
+          picked.year,
+          picked.month,
+          picked.day,
+          _closedDate.hour,
+          _closedDate.minute,
+        );
+      });
+    }
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_closedDate),
+    );
+    if (picked != null) {
+      setState(() {
+        _closedDate = DateTime(
+          _closedDate.year,
+          _closedDate.month,
+          _closedDate.day,
+          picked.hour,
+          picked.minute,
+        );
+      });
+    }
+  }
+
+  Future<void> _handleSave() async {
+    final parsed = int.tryParse(_totalController.text.replaceAll(',', ''));
+    if (parsed == null || parsed <= 0) {
+      setState(() {
+        _error = '유효한 금액을 입력해주세요.';
+      });
+      return;
+    }
+
+    setState(() {
+      _error = null;
+    });
+
+    await ref.read(salesRecordEditorProvider).updateRecord(
+          record: widget.record,
+          total: parsed,
+          paymentMethod: _paymentMethod,
+          closedDate: _closedDate,
+        );
+
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
   }
 }

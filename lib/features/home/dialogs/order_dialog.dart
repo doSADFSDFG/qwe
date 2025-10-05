@@ -6,6 +6,7 @@ import '../../../controllers/menu_controller.dart';
 import '../../../controllers/order_controller.dart';
 import '../../../models/menu_item.dart';
 import '../../../models/order_item.dart';
+import '../../../utils/time_ago.dart';
 
 class OrderDialog extends ConsumerStatefulWidget {
   const OrderDialog({super.key, required this.tableId});
@@ -23,10 +24,11 @@ class _OrderDialogState extends ConsumerState<OrderDialog> {
     final orderAsync = ref.watch(orderEditorProvider(widget.tableId));
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
       child: SizedBox(
-        width: 780,
-        height: 540,
+        width: 920,
+        height: 620,
         child: orderAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, stackTrace) => _buildError(context, error),
@@ -42,7 +44,7 @@ class _OrderDialogState extends ConsumerState<OrderDialog> {
                 return DefaultTabController(
                   length: categories.length,
                   child: Padding(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(32),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -50,8 +52,8 @@ class _OrderDialogState extends ConsumerState<OrderDialog> {
                           children: [
                             Text(
                               '테이블 ${orderState.tableId}',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
+                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                    fontWeight: FontWeight.w800,
                                   ),
                             ),
                             const Spacer(),
@@ -69,10 +71,12 @@ class _OrderDialogState extends ConsumerState<OrderDialog> {
                                 flex: 2,
                                 child: _OrderItemsPanel(
                                   state: orderState,
-                                  onIncrement: (item) =>
-                                      ref.read(orderEditorProvider(widget.tableId).notifier).incrementItem(item),
-                                  onDecrement: (item) =>
-                                      ref.read(orderEditorProvider(widget.tableId).notifier).decrementItem(item),
+                                  onIncrement: (item) => ref
+                                      .read(orderEditorProvider(widget.tableId).notifier)
+                                      .incrementItem(item),
+                                  onDecrement: (item) => ref
+                                      .read(orderEditorProvider(widget.tableId).notifier)
+                                      .decrementItem(item),
                                 ),
                               ),
                               const SizedBox(width: 24),
@@ -83,6 +87,10 @@ class _OrderDialogState extends ConsumerState<OrderDialog> {
                                   children: [
                                     TabBar(
                                       isScrollable: true,
+                                      labelStyle: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                       tabs: [
                                         for (final category in categories)
                                           Tab(text: category.name),
@@ -109,14 +117,33 @@ class _OrderDialogState extends ConsumerState<OrderDialog> {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: FilledButton(
-                            onPressed: orderState.items.isEmpty
-                                ? null
-                                : () => _showPaymentSheet(context, orderState.total),
-                            child: Text('결제하기 (\u20a9${NumberFormat('#,###').format(orderState.total)})'),
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            FilledButton.tonal(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 20),
+                                child: Text(
+                                  '저장',
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            FilledButton(
+                              onPressed: orderState.items.isEmpty
+                                  ? null
+                                  : () => _showPaymentSheet(context, orderState.total),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                child: Text(
+                                  '결제하기 (\u20a9${NumberFormat('#,###').format(orderState.total)})',
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -275,16 +302,17 @@ class _OrderItemsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 2,
+      elevation: 3,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               '주문 내역',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
                   ),
             ),
             const SizedBox(height: 12),
@@ -298,11 +326,11 @@ class _OrderItemsPanel extends StatelessWidget {
                         final item = state.items[index];
                         return DecoratedBox(
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF2F5FF),
-                            borderRadius: BorderRadius.circular(16),
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(20),
                           ),
                           child: Padding(
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.all(16),
                             child: Row(
                               children: [
                                 Expanded(
@@ -311,11 +339,23 @@ class _OrderItemsPanel extends StatelessWidget {
                                     children: [
                                       Text(item.menuName,
                                           style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 18,
                                           )),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        '합계: \u20a9${NumberFormat('#,###').format(item.total)}',
+                                        style: const TextStyle(fontSize: 16),
+                                      ),
                                       const SizedBox(height: 4),
-                                      Text('합계: \u20a9${NumberFormat('#,###').format(item.total)}'),
+                                      Text(
+                                        formatRelativeTime(item.updatedAt.toLocal()),
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Theme.of(context).colorScheme.primary,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),

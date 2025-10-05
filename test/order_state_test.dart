@@ -22,6 +22,7 @@ void main() {
           quantity: 2,
           unitPrice: 5000,
           menuName: '생맥주',
+          updatedAt: DateTime(2023, 1, 1, 20, 0),
         ),
         OrderItem(
           id: 2,
@@ -30,6 +31,7 @@ void main() {
           quantity: 1,
           unitPrice: 15000,
           menuName: '안주',
+          updatedAt: DateTime(2023, 1, 1, 20, 30),
         ),
       ],
     );
