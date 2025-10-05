@@ -1,0 +1,23 @@
+# Flutter/Dart
+build/
+.dart_tool/
+.packages
+.pub-cache/
+.flutter-plugins
+.flutter-plugins-dependencies
+.melos_tool/
+*.iml
+.idea/
+.vscode/
+
+# Platform-specific
+android/
+ios/
+macos/
+web/
+linux/
+windows/
+
+# Generated assets
+coverage/
+.dart_tool/**

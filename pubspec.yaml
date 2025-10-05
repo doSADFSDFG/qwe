@@ -1,0 +1,28 @@
+name: calut_pos
+description: >-
+  Flutter-based POS application for a bar with table management, ordering,
+  sales tracking, and configuration tools.
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.4.0
+  sqflite: ^2.3.0
+  sqflite_common_ffi: ^2.3.0
+  path_provider: ^2.1.1
+  intl: ^0.18.1
+  table_calendar: ^3.0.9
+
+flutter:
+  uses-material-design: true
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
