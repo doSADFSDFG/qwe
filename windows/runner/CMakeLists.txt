@@ -20,6 +20,10 @@ add_executable(${BINARY_NAME} WIN32
 # that need different build settings.
 apply_standard_settings(${BINARY_NAME})
 
+# Allow the runner to target legacy desktops such as Windows 7.
+target_compile_definitions(${BINARY_NAME} PRIVATE "_WIN32_WINNT=0x0601" "NTDDI_VERSION=0x06010000")
+target_link_options(${BINARY_NAME} PRIVATE "/SUBSYSTEM:WINDOWS,6.01")
+
 # Add preprocessor definitions for the build version.
 target_compile_definitions(${BINARY_NAME} PRIVATE "FLUTTER_VERSION=\"${FLUTTER_VERSION}\"")
 target_compile_definitions(${BINARY_NAME} PRIVATE "FLUTTER_VERSION_MAJOR=${FLUTTER_VERSION_MAJOR}")

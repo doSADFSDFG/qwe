@@ -25,7 +25,8 @@ flutter run -d windows # 혹은 macos, linux, chrome 등 지원 플랫폼
    ./scripts/build_windows_release.ps1
    ```
 2. `build/windows/x64/runner/Release/calut_pos.exe` 파일이 생성되며, 바로가기를 바탕화면에 등록하면 더블 클릭으로 실행할 수 있습니다.
-3. 아이콘과 버전 정보는 `windows/runner` 폴더에서 커스터마이즈할 수 있습니다.
+3. **Windows 러너 설정(예: 매니페스트, CMake 옵션 등)을 수정했다면 변경 사항이 포함된 실행 파일을 얻기 위해 위 스크립트를 다시 실행해야 합니다.** 기존 빌드 산출물은 수정 사항을 자동으로 반영하지 않습니다.
+4. 아이콘과 버전 정보는 `windows/runner` 폴더에서 커스터마이즈할 수 있습니다.
 
 ## 테스트
 단위 및 위젯 테스트는 `flutter test`로 실행할 수 있습니다.
