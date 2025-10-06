@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -61,19 +60,12 @@ class _TableCardState extends ConsumerState<TableCard> {
   Widget build(BuildContext context) {
     final formattedTotal = NumberFormat('#,###').format(widget.model.snapshot.total);
     final items = widget.model.snapshot.items;
-    final drinkItems =
-        items.where((item) => item.categoryName == _drinkCategoryName).toList();
+    final drinkItems = _drinkItems(items);
+
     final summary = () {
-      if (items.isEmpty) {
-        return '주문 없음';
-      }
-      if (drinkItems.isEmpty) {
-        return '주류 주문 없음';
-      }
-      return drinkItems
-          .take(3)
-          .map((item) => '${item.name} x${item.quantity}')
-          .join('\n');
+      if (items.isEmpty) return '주문 없음';
+      if (drinkItems.isEmpty) return '주류 주문 없음';
+      return drinkItems.map((item) => '${item.name} x${item.quantity}').join('\n');
     }();
 
     final card = MouseRegion(
@@ -84,86 +76,87 @@ class _TableCardState extends ConsumerState<TableCard> {
         onLongPress: widget.editable ? null : _toggleOverlay,
         onPanUpdate: widget.editable ? _handlePanUpdate : null,
         onPanEnd: widget.editable ? _handlePanEnd : null,
-        child: SizedBox(
-          width: 200,
-          height: 180,
-          child: Card(
-            elevation: 8,
-            shadowColor: Colors.black.withOpacity(0.08),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-            color: Colors.transparent,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Theme.of(context).colorScheme.primaryContainer.withOpacity(0.9),
-                    Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.9),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(28),
+        child: Card(
+          elevation: 8,
+          shadowColor: Colors.black.withOpacity(0.08),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          color: Colors.transparent,
+          child: Container(
+            constraints: const BoxConstraints(
+              minWidth: 200,
+              maxWidth: 260,
+              maxHeight: 420,
+            ),
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Theme.of(context).colorScheme.primaryContainer.withOpacity(0.9),
+                  Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.9),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(22),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              borderRadius: BorderRadius.circular(28),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min, // 내용에 따라 카드 높이 자동 조정
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 24,
-                          backgroundColor: Theme.of(context).colorScheme.primary,
-                          child: Text(
-                            widget.model.table.name,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
-                        ),
-                        const Spacer(),
-                        if (widget.model.snapshot.hasOpenOrder)
-                          Icon(
-                            Icons.local_bar,
-                            color: Theme.of(context).colorScheme.primary,
-                            size: 28,
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.topLeft,
-                        child: Text(
-                          summary,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                height: 1.4,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.black,
-                                fontSize: 17,
-                              ),
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      child: Text(
+                        widget.model.table.name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      widget.model.snapshot.hasOpenOrder
-                          ? '합계: \u20a9$formattedTotal'
-                          : '대기 중',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: widget.model.snapshot.hasOpenOrder
-                                ? Theme.of(context).colorScheme.primary
-                                : Colors.black45,
-                          ),
-                    ),
+                    const Spacer(),
+                    if (widget.model.snapshot.hasOpenOrder)
+                      Icon(
+                        Icons.local_bar,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 28,
+                      ),
                   ],
                 ),
-              ),
+                const SizedBox(height: 18),
+                Flexible(
+                  fit: FlexFit.loose,
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Text(
+                      summary,
+                      softWrap: true,
+                      overflow: TextOverflow.visible,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            height: 1.4,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.black,
+                            fontSize: 17,
+                          ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  widget.model.snapshot.hasOpenOrder
+                      ? '합계: \u20a9$formattedTotal'
+                      : '대기 중',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        color: widget.model.snapshot.hasOpenOrder
+                            ? Theme.of(context).colorScheme.primary
+                            : Colors.black45,
+                      ),
+                ),
+              ],
             ),
           ),
         ),
@@ -203,9 +196,7 @@ class _TableCardState extends ConsumerState<TableCard> {
   }
 
   void _handleHoverStart(PointerEnterEvent event) {
-    if (widget.editable || !widget.model.snapshot.hasOpenOrder) {
-      return;
-    }
+    if (widget.editable || !widget.model.snapshot.hasOpenOrder) return;
     _hoverTimer?.cancel();
     _hoverTimer = Timer(const Duration(seconds: 1), () {
       if (!mounted) return;
@@ -220,22 +211,21 @@ class _TableCardState extends ConsumerState<TableCard> {
   }
 
   void _showOverlay() {
-    if (!widget.model.snapshot.hasOpenOrder || widget.editable) {
-      return;
-    }
+    // 🔸 주문이 없거나 편집 모드일 때는 표시 안 함
+    if (!widget.model.snapshot.hasOpenOrder || widget.editable) return;
     if (_overlayEntry != null) {
       _overlayEntry!.markNeedsBuild();
       return;
     }
 
     final overlay = Overlay.of(context);
-    if (overlay == null) {
-      return;
-    }
+    if (overlay == null) return;
+
+    // ✅ 이제 전체 주문을 가져옴 (주류만이 아니라)
+    final allItems = widget.model.snapshot.items;
+    final numberFormat = NumberFormat('#,###');
 
     _overlayEntry = OverlayEntry(builder: (context) {
-      final items = widget.model.snapshot.items;
-      final numberFormat = NumberFormat('#,###');
       return IgnorePointer(
         child: Container(
           alignment: Alignment.center,
@@ -243,7 +233,7 @@ class _TableCardState extends ConsumerState<TableCard> {
           child: Material(
             color: Colors.transparent,
             child: Container(
-              constraints: const BoxConstraints(maxWidth: 460, maxHeight: 520),
+              constraints: const BoxConstraints(maxWidth: 680, maxHeight: 520),
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.96),
                 borderRadius: BorderRadius.circular(36),
@@ -274,7 +264,7 @@ class _TableCardState extends ConsumerState<TableCard> {
                     ),
                     const SizedBox(height: 12),
                     Expanded(
-                      child: items.isEmpty
+                      child: allItems.isEmpty
                           ? const Center(
                               child: Text(
                                 '주문 항목이 없습니다.',
@@ -292,46 +282,81 @@ class _TableCardState extends ConsumerState<TableCard> {
                                     .withOpacity(0.25),
                                 borderRadius: BorderRadius.circular(24),
                               ),
-                              child: ListView.separated(
-                                shrinkWrap: true,
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                itemCount: items.length,
-                                separatorBuilder: (_, __) => Divider(
-                                  height: 1,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .primary
-                                      .withOpacity(0.2),
+                              child: ScrollConfiguration(
+                                behavior: const MaterialScrollBehavior().copyWith(
+                                  dragDevices: {
+                                    PointerDeviceKind.touch,
+                                    PointerDeviceKind.mouse,
+                                  },
                                 ),
-                                itemBuilder: (context, index) {
-                                  final item = items[index];
-                                  return Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 22,
-                                      vertical: 14,
+                                child: Scrollbar(
+                                  thumbVisibility: true,
+                                  child: GridView.builder(
+                                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                                    gridDelegate:
+                                        const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 3,
+                                      mainAxisSpacing: 16,
+                                      crossAxisSpacing: 16,
+                                      childAspectRatio: 1.9,
                                     ),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            item.name,
-                                            style: const TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w800,
+                                    itemCount: allItems.length,
+                                    itemBuilder: (context, index) {
+                                      final item = allItems[index];
+                                      return DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(22),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color:
+                                                  Colors.black.withOpacity(0.04),
+                                              blurRadius: 12,
+                                              offset: const Offset(0, 6),
                                             ),
+                                          ],
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(16),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                item.name,
+                                                style: const TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              const Spacer(),
+                                              Text(
+                                                'x${item.quantity}',
+                                                style: const TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                '\u20a9${numberFormat.format(item.total)}',
+                                                style: TextStyle(
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .primary,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                        Text(
-                                          'x${item.quantity}',
-                                          style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
+                                      );
+                                    },
+                                  ),
+                                ),
                               ),
                             ),
                     ),
@@ -358,5 +383,9 @@ class _TableCardState extends ConsumerState<TableCard> {
   void _hideOverlay() {
     _overlayEntry?.remove();
     _overlayEntry = null;
+  }
+
+  List<TableOrderItem> _drinkItems(List<TableOrderItem> items) {
+    return items.where((item) => item.categoryName == _drinkCategoryName).toList();
   }
 }

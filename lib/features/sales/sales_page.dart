@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -240,6 +241,7 @@ class _SalesRecordEditDialogState extends ConsumerState<SalesRecordEditDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final orderItemsAsync = ref.watch(saleOrderItemsProvider(widget.record.orderId));
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       child: SizedBox(
@@ -263,6 +265,108 @@ class _SalesRecordEditDialogState extends ConsumerState<SalesRecordEditDialog> {
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
+              Text(
+                '주문 메뉴 내역',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 220,
+                child: orderItemsAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (error, stackTrace) => const Center(
+                    child: Text(
+                      '주문 내역을 불러오지 못했습니다.',
+                      style: TextStyle(
+                        color: Colors.redAccent,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  data: (items) {
+                    if (items.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          '주문된 메뉴가 없습니다.',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        ),
+                      );
+                    }
+                    return ScrollConfiguration(
+                      behavior: const MaterialScrollBehavior().copyWith(
+                        dragDevices: {
+                          PointerDeviceKind.touch,
+                          PointerDeviceKind.mouse,
+                        },
+                      ),
+                      child: Scrollbar(
+                        thumbVisibility: true,
+                        child: GridView.builder(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 12,
+                            crossAxisSpacing: 12,
+                            childAspectRatio: 1.3,
+                          ),
+                          itemCount: items.length,
+                          itemBuilder: (context, index) {
+                            final item = items[index];
+                            return DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primaryContainer
+                                    .withOpacity(0.45),
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.menuName,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      'x${item.quantity}',
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '₩${NumberFormat('#,###').format(item.total)}',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                        color: Theme.of(context).colorScheme.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
               const SizedBox(height: 16),
               TextField(
                 controller: _totalController,

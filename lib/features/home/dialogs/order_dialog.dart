@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -28,8 +29,8 @@ class _OrderDialogState extends ConsumerState<OrderDialog> {
       insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
       child: SizedBox(
-        width: 920,
-        height: 620,
+        width: 1280,
+        height: 720,
         child: orderAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, stackTrace) => _buildError(context, error),
@@ -61,28 +62,52 @@ class _OrderDialogState extends ConsumerState<OrderDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          /// ✅ 상단: 테이블 번호 + 메뉴 카테고리 탭
                           Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               Text(
                                 '테이블 ${orderState.tableId}',
-                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineSmall
+                                    ?.copyWith(
                                       fontWeight: FontWeight.w900,
                                       color: Colors.black,
                                     ),
                               ),
-                              const Spacer(),
+                              const SizedBox(width: 32),
+                              Expanded(
+                                child: TabBar(
+                                  isScrollable: true,
+                                  labelStyle: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  tabs: [
+                                    for (final category in categories)
+                                      Tab(text: category.name),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 16),
                               IconButton(
                                 onPressed: () => Navigator.of(context).pop(),
                                 icon: const Icon(Icons.close),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
+
+                          const SizedBox(height: 16),
+
+                          /// ✅ 본문: 주문내역 + 메뉴추가 + 활동기록
                           Expanded(
                             child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
+                                /// 왼쪽 - 주문 내역
                                 Expanded(
-                                  flex: 2,
+                                  flex: 5,
                                   child: _OrderItemsPanel(
                                     state: orderState,
                                     onIncrement: (item) => ref
@@ -94,8 +119,10 @@ class _OrderDialogState extends ConsumerState<OrderDialog> {
                                   ),
                                 ),
                                 const SizedBox(width: 24),
+
+                                /// 중앙 - 메뉴 추가 (TabBarView만 남김)
                                 Expanded(
-                                  flex: 3,
+                                  flex: 4,
                                   child: Container(
                                     decoration: BoxDecoration(
                                       color: Colors.white.withOpacity(0.75),
@@ -109,93 +136,65 @@ class _OrderDialogState extends ConsumerState<OrderDialog> {
                                       ],
                                     ),
                                     child: Padding(
-                                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                      padding: const EdgeInsets.all(20),
+                                      child: TabBarView(
                                         children: [
-                                          Text(
-                                            '메뉴 추가',
-                                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                                  fontWeight: FontWeight.w900,
-                                                ),
-                                          ),
-                                          const SizedBox(height: 16),
-                                          TabBar(
-                                            isScrollable: true,
-                                            labelStyle: const TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
+                                          for (final category in categories)
+                                            _MenuGrid(
+                                              categoryId: category.id,
+                                              onAdd: (menu) => ref
+                                                  .read(orderEditorProvider(widget.tableId).notifier)
+                                                  .addMenuItem(menu),
                                             ),
-                                            tabs: [
-                                              for (final category in categories)
-                                                Tab(text: category.name),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 16),
-                                          Expanded(
-                                            child: TabBarView(
-                                              children: [
-                                                for (final category in categories)
-                                                  _MenuGrid(
-                                                    categoryId: category.id,
-                                                    onAdd: (menu) => ref
-                                                        .read(orderEditorProvider(widget.tableId).notifier)
-                                                        .addMenuItem(menu),
-                                                  ),
-                                              ],
-                                            ),
-                                          ),
                                         ],
                                       ),
                                     ),
                                   ),
                                 ),
+                                const SizedBox(width: 24),
+
+                                /// 오른쪽 - 활동 기록
+                                if (orderState.activityLogs.isNotEmpty)
+                                  SizedBox(
+                                    width: 150,
+                                    child: _ActivityLogPanel(logs: orderState.activityLogs),
+                                  ),
                               ],
                             ),
                           ),
+
                           const SizedBox(height: 20),
+
+                          /// 하단 버튼 영역
                           Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              if (orderState.activityLogs.isNotEmpty) ...[
-                                Expanded(
-                                  child: _ActivityLogPanel(logs: orderState.activityLogs),
+                              FilledButton.tonal(
+                                onPressed: () => Navigator.of(context).pop(),
+                                style: FilledButton.styleFrom(
+                                  minimumSize: const Size(150, 64),
+                                  textStyle: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
-                                const SizedBox(width: 24),
-                              ] else ...[
-                                const Spacer(),
-                              ],
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  FilledButton.tonal(
-                                    onPressed: () => Navigator.of(context).pop(),
-                                    style: FilledButton.styleFrom(
-                                      minimumSize: const Size(150, 64),
-                                      textStyle: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    child: const Text('저장'),
+                                child: const Text('저장'),
+                              ),
+                              const SizedBox(width: 16),
+                              FilledButton(
+                                onPressed: orderState.items.isEmpty
+                                    ? null
+                                    : () => _showPaymentSheet(context, orderState.total),
+                                style: FilledButton.styleFrom(
+                                  minimumSize: const Size(220, 64),
+                                  textStyle: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
                                   ),
-                                  const SizedBox(width: 16),
-                                  FilledButton(
-                                    onPressed: orderState.items.isEmpty
-                                        ? null
-                                        : () => _showPaymentSheet(context, orderState.total),
-                                    style: FilledButton.styleFrom(
-                                      minimumSize: const Size(220, 64),
-                                      textStyle: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      '결제하기 (₩${NumberFormat('#,###').format(orderState.total)})',
-                                    ),
-                                  ),
-                                ],
+                                ),
+                                child: Text(
+                                  '결제하기 (₩${NumberFormat('#,###').format(orderState.total)})',
+                                ),
                               ),
                             ],
                           ),
@@ -284,9 +283,7 @@ class _OrderDialogState extends ConsumerState<OrderDialog> {
     );
 
     if (method != null) {
-      await ref.read(orderEditorProvider(widget.tableId).notifier).closeOrder(
-            paymentMethod: method,
-          );
+      await ref.read(orderEditorProvider(widget.tableId).notifier).closeOrder(paymentMethod: method);
       if (mounted) {
         Navigator.of(context).pop();
       }
@@ -310,40 +307,61 @@ class _MenuGrid extends ConsumerWidget {
         if (items.isEmpty) {
           return const Center(child: Text('메뉴가 없습니다.'));
         }
-        return GridView.builder(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            mainAxisSpacing: 18,
-            crossAxisSpacing: 18,
-            childAspectRatio: 2.2,
-          ),
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            final menu = items[index];
-            return FilledButton(
-              onPressed: () => onAdd(menu),
-              style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            // ✅ 최소 2열은 유지되도록 수정
+            final crossAxisCount = (constraints.maxWidth / 220).floor().clamp(2, 4);
+
+            return GridView.builder(
+              padding: const EdgeInsets.all(8),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+                childAspectRatio: 2.4,
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(menu.name, textAlign: TextAlign.center),
-                  const SizedBox(height: 8),
-                  Text(
-                    '₩${NumberFormat('#,###').format(menu.price)}',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.primary,
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final menu = items[index];
+                return FilledButton(
+                  onPressed: () => onAdd(menu),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                    foregroundColor: Colors.black87,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
                     ),
                   ),
-                ],
-              ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          menu.name,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.visible,
+                          softWrap: true,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '₩${NumberFormat('#,###').format(menu.price)}',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             );
           },
         );
@@ -352,6 +370,7 @@ class _MenuGrid extends ConsumerWidget {
   }
 }
 
+/// ✅ 주문 내역
 class _OrderItemsPanel extends StatelessWidget {
   const _OrderItemsPanel({
     required this.state,
@@ -382,13 +401,6 @@ class _OrderItemsPanel extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '주문 내역',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
-            ),
-            const SizedBox(height: 16),
             Expanded(
               child: state.items.isEmpty
                   ? const Center(
@@ -397,76 +409,88 @@ class _OrderItemsPanel extends StatelessWidget {
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                       ),
                     )
-                  : ListView.separated(
-                      padding: EdgeInsets.zero,
-                      itemCount: state.items.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final item = state.items[index];
-                        return Container(
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.65),
-                            borderRadius: BorderRadius.circular(24),
+                  : ScrollConfiguration(
+                      behavior: const MaterialScrollBehavior().copyWith(
+                        dragDevices: {
+                          PointerDeviceKind.touch,
+                          PointerDeviceKind.mouse,
+                        },
+                      ),
+                      child: Scrollbar(
+                        thumbVisibility: true,
+                        child: GridView.builder(
+                          padding: EdgeInsets.zero,
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 16,
+                            crossAxisSpacing: 16,
+                            childAspectRatio: 1.8,
                           ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(18),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        item.menuName,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 20,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        '합계: \u20a9${NumberFormat('#,###').format(item.total)}',
-                                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        formatRelativeTime(item.updatedAt.toLocal()),
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          color: Theme.of(context).colorScheme.primary,
-                                        ),
-                                      ),
-                                    ],
+                          itemCount: state.items.length,
+                          itemBuilder: (context, index) {
+                            final item = state.items[index];
+                            return DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.65),
+                                borderRadius: BorderRadius.circular(24),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.08),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 6),
                                   ),
-                                ),
-                                Row(
+                                ],
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(18),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _RoundIconButton(
-                                      icon: Icons.remove,
-                                      onPressed: () => onDecrement(item),
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                                      child: Text(
-                                        item.quantity.toString(),
-                                        style: const TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w800,
-                                        ),
+                                    Text(
+                                      item.menuName,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 20,
                                       ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    _RoundIconButton(
-                                      icon: Icons.add,
-                                      onPressed: () => onIncrement(item),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      '합계: \u20a9${NumberFormat('#,###').format(item.total)}',
+                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                    ),
+                                    const Spacer(),
+                                    Row(
+                                      children: [
+                                        _RoundIconButton(
+                                          icon: Icons.remove,
+                                          onPressed: () => onDecrement(item),
+                                        ),
+                                        Expanded(
+                                          child: Center(
+                                            child: Text(
+                                              item.quantity.toString(),
+                                              style: const TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.w900,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        _RoundIconButton(
+                                          icon: Icons.add,
+                                          onPressed: () => onIncrement(item),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
+                              ),
+                            );
+                          },
+                        ),
+                      ),
                     ),
             ),
           ],
@@ -476,6 +500,7 @@ class _OrderItemsPanel extends StatelessWidget {
   }
 }
 
+/// ✅ 활동 기록
 class _ActivityLogPanel extends StatelessWidget {
   const _ActivityLogPanel({required this.logs});
 
@@ -485,7 +510,6 @@ class _ActivityLogPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final reversedLogs = logs.reversed.toList();
     return Container(
-      height: 140,
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.4),
         borderRadius: BorderRadius.circular(24),
@@ -494,57 +518,64 @@ class _ActivityLogPanel extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '활동 기록',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: ListView.separated(
-                padding: EdgeInsets.zero,
-                itemCount: reversedLogs.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (context, index) {
-                  final log = reversedLogs[index];
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${log.menuName} x${log.quantity}',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: ScrollConfiguration(
+          behavior: const MaterialScrollBehavior().copyWith(
+            dragDevices: {
+              PointerDeviceKind.touch,
+              PointerDeviceKind.mouse,
+            },
+          ),
+          child: Scrollbar(
+            thumbVisibility: true,
+            child: ListView.builder(
+              itemCount: reversedLogs.length,
+              itemBuilder: (context, index) {
+                final log = reversedLogs[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.65),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${log.menuName} x${log.quantity}',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                          Text(
+                            formatRelativeTime(log.createdAt),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      Text(
-                        formatRelativeTime(log.createdAt),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
+                    ),
+                  ),
+                );
+              },
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
+/// ✅ 수량 조절 버튼
 class _RoundIconButton extends StatelessWidget {
   const _RoundIconButton({required this.icon, required this.onPressed});
 

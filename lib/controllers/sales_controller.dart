@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../data/pos_database.dart';
+import '../models/order_item.dart';
 import '../models/sales_record.dart';
 import '../utils/korean_time.dart';
 
@@ -17,6 +18,12 @@ final salesRecordsProvider = FutureProvider<List<SalesRecord>>((ref) async {
   final date = ref.watch(salesDateProvider);
   await db.open();
   return db.getSalesForDate(date);
+});
+
+final saleOrderItemsProvider = FutureProvider.family<List<OrderItem>, int>((ref, orderId) async {
+  final db = ref.read(posDatabaseProvider);
+  await db.open();
+  return db.getOrderItems(orderId);
 });
 
 final salesSummaryProvider = Provider<SalesSummary>((ref) {
