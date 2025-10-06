@@ -39,6 +39,10 @@ int MultiByteToWide(const char* source, PWSTR destination, INT dest_len) {
 
 }  // namespace
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4273)
+#endif
 extern "C" INT WSAAPI GetHostNameW(PWSTR name, INT namelen) {
   if (!name || namelen <= 0) {
     WSASetLastError(WSAEFAULT);
@@ -89,3 +93,6 @@ extern "C" INT WSAAPI GetHostNameW(PWSTR name, INT namelen) {
 
   return 0;
 }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
